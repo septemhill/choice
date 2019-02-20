@@ -4,8 +4,13 @@ import (
 	"bufio"
 	"container/list"
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
+	"strings"
+	"time"
+
+	"github.com/septemhill/fion"
 )
 
 type Listable interface {
@@ -83,24 +88,158 @@ func readUserChoice() int {
 	}
 }
 
-func main() {
-	//Create a team
-	team := &Team{
-		Characters: []Character{
-			Character{Name: "Septem"},
-			Character{Name: "Nicole"},
-		},
-		Money: 10000000,
+//func main() {
+//	//Create a team
+//	team := &Team{
+//		Characters: []Character{
+//			Character{Name: "Septem"},
+//			Character{Name: "Nicole"},
+//		},
+//		Money: 10000000,
+//	}
+//
+//	//v := NewVilleage("DQ Town")
+//	//v.Enter(team)
+//
+//	rndMap := CreateRandomMap()
+//	rndMap.Enter(team)
+//
+//	rndMap.Walk()
+//
+//	//	go TaskRoutine()
+//	//	select {}
+//}
+
+func drawDashLine(width, space int) {
+	dash := "-"
+
+	for i := 0; i < width; i++ {
+		dash += strings.Repeat("-", 3+1)
 	}
 
-	//v := NewVilleage("DQ Town")
-	//v.Enter(team)
+	fmt.Println(dash)
+}
 
-	rndMap := CreateRandomMap()
-	rndMap.Enter(team)
+func drawGridColumn(width, space int) {
+	grid := "|"
 
-	rndMap.Walk()
+	for i := 0; i < width; i++ {
+		grid += fion.BRed(strings.Repeat(" ", 3)) + "|"
+	}
 
-	//	go TaskRoutine()
-	//	select {}
+	fmt.Println(grid)
+}
+
+func drawSmallMap(width, height int) {
+	dashLineCount := height + 1
+	space := 3
+	//gridWidth := space + 2
+
+	for i := 0; i < dashLineCount+height; i++ {
+		if i%2 == 0 {
+			drawDashLine(width, space)
+		} else {
+			drawGridColumn(width, space)
+		}
+	}
+}
+
+func exist(x, y int, cords []*Coordinate) bool {
+	for i := 0; i < len(cords); i++ {
+		//fmt.Println(x, y, cords[i][0], cords[i][1])
+		if x == cords[i].X && y == cords[i].Y {
+			return true
+		}
+	}
+
+	return false
+}
+
+func drawPathGridColumn(width, height, space int, coord []*Coordinate) {
+	grid := "|"
+
+	for i := 0; i < width; i++ {
+		if exist(i, height, coord) {
+			grid += fion.BRed(strings.Repeat(" ", space)) + "|"
+		} else {
+			grid += strings.Repeat(" ", space) + "|"
+		}
+	}
+	fmt.Println(grid)
+}
+
+func drawPath(width, height int, coord []*Coordinate) {
+	dashLineCount := height + 1
+	space := 3
+	h := 0
+
+	for i := 0; i < dashLineCount+height; i++ {
+		if i%2 == 0 {
+			drawDashLine(width, space)
+		} else {
+			drawPathGridColumn(width, h, space, coord)
+			h++
+		}
+	}
+}
+
+func randomWay(width, height int, cords *[][]int) {
+	rand.Seed(time.Now().UnixNano())
+	ways := []uint{RIGHT_WAY, LEFT_WAY, DOWN_WAY, UP_WAY}
+
+	startX, startY := 0, 0
+	way := uint(0)
+	lastWay := uint(0)
+
+	fmt.Println(startX, startY)
+	for i := 0; i < 250; i++ {
+	ENDLOOP:
+		for {
+			rand.Shuffle(len(ways), func(i, j int) {
+				ways[i], ways[j] = ways[j], ways[i]
+			})
+
+			way = ways[0]
+
+			if way == lastWay {
+				continue
+			}
+
+			switch way {
+			case UP_WAY:
+				if (startY - 1) >= 0 {
+					startY--
+					break ENDLOOP
+				}
+			case DOWN_WAY:
+				if (startY + 1) < height {
+					startY++
+					break ENDLOOP
+				}
+			case RIGHT_WAY:
+				if (startX + 1) < width {
+					startX++
+					break ENDLOOP
+				}
+			case LEFT_WAY:
+				if (startX - 1) >= 0 {
+					startX--
+					break ENDLOOP
+				}
+			}
+		}
+		lastWay = ^uint(way)
+		*cords = append(*cords, []int{startX, startY})
+		//fmt.Println(startX, startY)
+	}
+}
+
+func main() {
+	//Create2DRandomMap(7, 7)
+	//cords := make([][]int, 0)
+	//randomWay(40, 40, &cords)
+	cords := CreateMap(20, 20)
+	drawPath(20, 20, cords)
+	//drawPath(40, 40, cords)
+
 }
