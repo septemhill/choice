@@ -4,11 +4,9 @@ import (
 	"bufio"
 	"container/list"
 	"fmt"
-	"math/rand"
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/septemhill/fion"
 )
@@ -146,7 +144,6 @@ func drawSmallMap(width, height int) {
 
 func exist(x, y int, cords []*Coordinate) bool {
 	for i := 0; i < len(cords); i++ {
-		//fmt.Println(x, y, cords[i][0], cords[i][1])
 		if x == cords[i].X && y == cords[i].Y {
 			return true
 		}
@@ -155,17 +152,109 @@ func exist(x, y int, cords []*Coordinate) bool {
 	return false
 }
 
-func drawPathGridColumn(width, height, space int, coord []*Coordinate) {
+func find(x, y int, cords []*Coordinate) *Coordinate {
+	for i := 0; i < len(cords); i++ {
+		if x == cords[i].X && y == cords[i].Y {
+			return cords[i]
+		}
+	}
+
+	return nil
+}
+
+func drawMapDashline(width, height, space int, coord []*Coordinate) {
+	dash := "-"
+
+	for i := 0; i < width; i++ {
+		if exist(i, height-1, coord) && exist(i, height, coord) {
+			if exist(i, height, coord) && exist(i+1, height, coord) {
+				dash += fion.BRed(strings.Repeat(" ", space+1))
+
+			} else {
+				dash += fion.BRed(strings.Repeat(" ", space))
+				dash += "-"
+			}
+		} else {
+			dash += strings.Repeat("-", space+1)
+		}
+		//dash += strings.Repeat("-", space+1)
+	}
+	fmt.Println(dash)
+}
+
+func drawMapGridColumn(width, height, space int, coord []*Coordinate) {
 	grid := "|"
 
 	for i := 0; i < width; i++ {
 		if exist(i, height, coord) {
-			grid += fion.BRed(strings.Repeat(" ", space)) + "|"
+			grid += fion.BRed(strings.Repeat(" ", space))
+
+			if exist(i+1, height, coord) {
+				grid += fion.BRed(" ")
+			} else {
+				grid += "|"
+			}
 		} else {
 			grid += strings.Repeat(" ", space) + "|"
 		}
 	}
 	fmt.Println(grid)
+}
+
+func drawMap(width, height int, coord []*Coordinate) {
+	dashLineCount := height + 1
+	space := 3
+	h := 0
+
+	for i := 0; i < dashLineCount+height; i++ {
+		if i%2 == 0 {
+			drawMapDashline(width, h, space, coord)
+		} else {
+			drawMapGridColumn(width, h, space, coord)
+			h++
+		}
+	}
+}
+
+func drawPathDashline(width, height, space int, cords []*Coordinate) {
+	dash := "-"
+
+	for i := 0; i < width; i++ {
+		if exist(i, height-1, cords) && exist(i, height, cords) {
+			up, down := find(i, height-1, cords), find(i, height, cords)
+			if up.Down || down.Up {
+				dash += fion.BRed(strings.Repeat(" ", space)) + "-"
+			} else {
+				dash += strings.Repeat("-", space+1)
+			}
+		} else {
+			dash += strings.Repeat("-", space+1)
+		}
+		//		if exist(i, height-1, cords) {
+		//			cord := find(i, height-1, cords)
+		//			if cord.Down {
+		//				dash += fion.BRed(strings.Repeat(" ", space)) + "-"
+		//			} else {
+		//				dash += strings.Repeat("-", space+1)
+		//			}
+		//		} else if exist(i, height, cords) {
+		//			cord := find(i, height, cords)
+		//			//			fmt.Println(i, height, cord)
+		//			if cord.Up {
+		//				dash += fion.BRed(strings.Repeat(" ", space)) + "-"
+		//			} else {
+		//				dash += strings.Repeat("-", space+1)
+		//			}
+		//		} else {
+		//			//fmt.Println("FDSA")
+		//			dash += strings.Repeat("-", space+1)
+		//		}
+	}
+	fmt.Println(dash)
+}
+
+func drawPathGridColumn(width, height, space int, cords []*Coordinate) {
+	drawMapGridColumn(width, height, space, cords)
 }
 
 func drawPath(width, height int, coord []*Coordinate) {
@@ -175,7 +264,7 @@ func drawPath(width, height int, coord []*Coordinate) {
 
 	for i := 0; i < dashLineCount+height; i++ {
 		if i%2 == 0 {
-			drawDashLine(width, space)
+			drawPathDashline(width, h, space, coord)
 		} else {
 			drawPathGridColumn(width, h, space, coord)
 			h++
@@ -183,63 +272,13 @@ func drawPath(width, height int, coord []*Coordinate) {
 	}
 }
 
-func randomWay(width, height int, cords *[][]int) {
-	rand.Seed(time.Now().UnixNano())
-	ways := []uint{RIGHT_WAY, LEFT_WAY, DOWN_WAY, UP_WAY}
-
-	startX, startY := 0, 0
-	way := uint(0)
-	lastWay := uint(0)
-
-	fmt.Println(startX, startY)
-	for i := 0; i < 250; i++ {
-	ENDLOOP:
-		for {
-			rand.Shuffle(len(ways), func(i, j int) {
-				ways[i], ways[j] = ways[j], ways[i]
-			})
-
-			way = ways[0]
-
-			if way == lastWay {
-				continue
-			}
-
-			switch way {
-			case UP_WAY:
-				if (startY - 1) >= 0 {
-					startY--
-					break ENDLOOP
-				}
-			case DOWN_WAY:
-				if (startY + 1) < height {
-					startY++
-					break ENDLOOP
-				}
-			case RIGHT_WAY:
-				if (startX + 1) < width {
-					startX++
-					break ENDLOOP
-				}
-			case LEFT_WAY:
-				if (startX - 1) >= 0 {
-					startX--
-					break ENDLOOP
-				}
-			}
-		}
-		lastWay = ^uint(way)
-		*cords = append(*cords, []int{startX, startY})
-		//fmt.Println(startX, startY)
-	}
-}
-
 func main() {
-	//Create2DRandomMap(7, 7)
-	//cords := make([][]int, 0)
-	//randomWay(40, 40, &cords)
-	cords := CreateMap(20, 20)
-	drawPath(20, 20, cords)
-	//drawPath(40, 40, cords)
+	width, height := 20, 20
 
+	cords := CreateMap(width, height)
+	drawPath(width, height, cords)
+
+	for i := 0; i < len(cords); i++ {
+		fmt.Println(cords[i])
+	}
 }

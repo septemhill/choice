@@ -1,16 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 	"time"
-)
-
-const (
-	UP_WAY    = 0
-	DOWN_WAY  = ^uint(0) //18446744073709551615
-	LEFT_WAY  = 1
-	RIGHT_WAY = ^uint(1) //18446744073709551614
 )
 
 type Coordinate struct {
@@ -24,81 +16,103 @@ type Coordinate struct {
 
 type CoordinateMap map[int]map[int]struct{}
 
+func mapSize(m CoordinateMap) int {
+	c := 0
+	for i := 0; i < len(m); i++ {
+		c += len(m[i])
+	}
+
+	return c
+}
+
+func entryWay(coord *[]*Coordinate) {
+	for i := 0; i < len(*coord)-1; i++ {
+		if (*coord)[i].X-(*coord)[i+1].X > 0 {
+			(*coord)[i].Left = true
+		}
+		if (*coord)[i].X-(*coord)[i+1].X < 0 {
+			(*coord)[i].Right = true
+		}
+		if (*coord)[i].Y-(*coord)[i+1].Y > 0 {
+			(*coord)[i].Up = true
+		}
+		if (*coord)[i].Y-(*coord)[i+1].Y < 0 {
+			(*coord)[i].Down = true
+		}
+	}
+}
+
 func CreateMap(width, height int) []*Coordinate {
-	outMap := make(CoordinateMap)
-	inMap := make(CoordinateMap)
+	inMap, outMap := make(CoordinateMap), make(CoordinateMap)
 	trace := make([]*Coordinate, 0)
+	size := width * height * 50 / 100
+	grids := 0
 
 	rand.Seed(time.Now().UnixNano())
 
 	for i := 0; i < width; i++ {
-		outMap[i] = make(map[int]struct{})
-		inMap[i] = make(map[int]struct{})
+		inMap[i], outMap[i] = make(map[int]struct{}), make(map[int]struct{})
 		for j := 0; j < height; j++ {
 			outMap[i][j] = struct{}{}
 		}
 	}
 
 	startX, startY := 0, 0
-
 	delete(outMap[0], 0)
 	inMap[0][0] = struct{}{}
 
-	size := width * height * 60 / 100
+	for {
+		ccont := make([]*Coordinate, 0)
 
-	fmt.Println(0, 0)
-	for grids := 0; grids < size; {
-		for {
-			ccont := make([]*Coordinate, 0)
+		_, ok := outMap[startX][startY-1]
+		if ok {
+			ccont = append(ccont, &Coordinate{X: startX, Y: startY - 1})
+		}
+		_, ok = outMap[startX][startY+1]
+		if ok {
+			ccont = append(ccont, &Coordinate{X: startX, Y: startY + 1})
+		}
+		_, ok = outMap[startX+1][startY]
+		if ok {
+			ccont = append(ccont, &Coordinate{X: startX + 1, Y: startY})
+		}
+		_, ok = outMap[startX-1][startY]
+		if ok {
+			ccont = append(ccont, &Coordinate{X: startX - 1, Y: startY})
+		}
 
-			_, ok := outMap[startX][startY-1]
-			if ok {
-				ccont = append(ccont, &Coordinate{X: startX, Y: startY - 1})
-			}
-			_, ok = outMap[startX][startY+1]
-			if ok {
-				ccont = append(ccont, &Coordinate{X: startX, Y: startY + 1})
-			}
-			_, ok = outMap[startX+1][startY]
-			if ok {
-				ccont = append(ccont, &Coordinate{X: startX + 1, Y: startY})
-			}
-			_, ok = outMap[startX-1][startY]
-			if ok {
-				ccont = append(ccont, &Coordinate{X: startX - 1, Y: startY})
-			}
-
-			if len(ccont) == 0 {
-				trace = trace[:len(trace)-1]
-				last := trace[len(trace)-1]
-				//fmt.Println(last.X, last.Y)
-				startX, startY = last.X, last.Y
-				grids--
-				continue
+		if len(ccont) == 0 {
+			if mapSize(outMap) == 0 {
+				break
 			}
 
-			rand.Shuffle(len(ccont), func(i, j int) {
-				ccont[i], ccont[j] = ccont[j], ccont[i]
-			})
+			trace = trace[:len(trace)-1]
+			last := trace[len(trace)-1]
+			startX, startY = last.X, last.Y
+			grids--
+			continue
+		}
 
-			s := ccont[0]
+		rand.Shuffle(len(ccont), func(i, j int) {
+			ccont[i], ccont[j] = ccont[j], ccont[i]
+		})
 
-			startX, startY = s.X, s.Y
+		next := ccont[0]
 
-			delete(outMap[s.X], s.Y)
-			inMap[s.X][s.Y] = struct{}{}
+		delete(outMap[next.X], next.Y)
+		inMap[next.X][next.Y] = struct{}{}
+		trace = append(trace, &Coordinate{X: next.X, Y: next.Y})
 
-			trace = append(trace, s)
+		startX, startY = next.X, next.Y
 
+		grids++
+		if grids == size {
 			break
 		}
-		grids++
 	}
 
-	trace = append([]*Coordinate{&Coordinate{X: 0, Y: 0}}, trace[0:]...)
-	//for i := 0; i < len(trace); i++ {
-	//	fmt.Println("T", trace[i])
-	//}
-	//fmt.Println("TRACE", len(trace))
+	trace = append([]*Coordinate{&Coordinate{X: 0, Y: 0}}, trace...)
+	entryWay(&trace)
+
 	return trace
 }
