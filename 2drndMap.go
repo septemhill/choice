@@ -1,9 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
+	"strings"
 	"time"
+
+	"github.com/septemhill/fion"
 )
+
+type coordinateMap map[int]map[int]struct{}
 
 type Coordinate struct {
 	X     int
@@ -14,9 +20,140 @@ type Coordinate struct {
 	Right bool
 }
 
-type CoordinateMap map[int]map[int]struct{}
+type Map struct {
+	cords  []*Coordinate
+	Width  int
+	Height int
+}
 
-func mapSize(m CoordinateMap) int {
+func (m *Map) exist(x, y int, cords []*Coordinate) bool {
+	for i := 0; i < len(cords); i++ {
+		if x == cords[i].X && y == cords[i].Y {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (m *Map) find(x, y int, cords []*Coordinate) *Coordinate {
+	for i := 0; i < len(cords); i++ {
+		if x == cords[i].X && y == cords[i].Y {
+			return cords[i]
+		}
+	}
+
+	return nil
+}
+
+func (m *Map) drawMapDashline(width, height, space int, coord []*Coordinate) {
+	dash := "-"
+
+	for i := 0; i < width; i++ {
+		if m.exist(i, height-1, coord) && m.exist(i, height, coord) {
+			if m.exist(i, height, coord) && m.exist(i+1, height, coord) {
+				dash += fion.BRed(strings.Repeat(" ", space+1))
+
+			} else {
+				dash += fion.BRed(strings.Repeat(" ", space))
+				dash += "-"
+			}
+		} else {
+			dash += strings.Repeat("-", space+1)
+		}
+		//dash += strings.Repeat("-", space+1)
+	}
+	fmt.Println(dash)
+}
+
+func (m *Map) drawMapGridColumn(width, height, space int, coord []*Coordinate) {
+	grid := "|"
+
+	for i := 0; i < width; i++ {
+		if m.exist(i, height, coord) {
+			grid += fion.BRed(strings.Repeat(" ", space))
+
+			if m.exist(i+1, height, coord) {
+				grid += fion.BRed(" ")
+			} else {
+				grid += "|"
+			}
+		} else {
+			grid += strings.Repeat(" ", space) + "|"
+		}
+	}
+	fmt.Println(grid)
+}
+
+func (m *Map) DrawMap() {
+	dashLineCount := m.Height + 1
+	space := 3
+	h := 0
+
+	for i := 0; i < dashLineCount+m.Height; i++ {
+		if i%2 == 0 {
+			m.drawMapDashline(m.Width, h, space, m.cords)
+		} else {
+			m.drawMapGridColumn(m.Width, h, space, m.cords)
+			h++
+		}
+	}
+}
+
+func (m *Map) drawPathDashline(width, height, space int, cords []*Coordinate) {
+	dash := "-"
+
+	for i := 0; i < width; i++ {
+		if m.exist(i, height-1, cords) && m.exist(i, height, cords) {
+			up, down := m.find(i, height-1, cords), m.find(i, height, cords)
+			if up.Down || down.Up {
+				dash += fion.BRed(strings.Repeat(" ", space)) + "-"
+			} else {
+				dash += strings.Repeat("-", space+1)
+			}
+		} else {
+			dash += strings.Repeat("-", space+1)
+		}
+	}
+	fmt.Println(dash)
+}
+
+func (m *Map) drawPathGridColumn(width, height, space int, cords []*Coordinate) {
+	grid := "|"
+
+	for i := 0; i < width; i++ {
+		if m.exist(i, height, cords) && m.exist(i+1, height, cords) {
+			left, right := m.find(i, height, cords), m.find(i+1, height, cords)
+			if left.Right || right.Left {
+				grid += fion.BRed(strings.Repeat(" ", space+1))
+			} else {
+				grid += fion.BRed(strings.Repeat(" ", space)) + "|"
+			}
+		} else if m.exist(i, height, cords) {
+			grid += fion.BRed(strings.Repeat(" ", space)) + "|"
+		} else {
+			grid += strings.Repeat(" ", space) + "|"
+		}
+	}
+	fmt.Println(grid)
+}
+
+func (m *Map) DrawPath() {
+	dashLineCount := m.Height + 1
+	space := 3
+	h := 0
+
+	for i := 0; i < dashLineCount+m.Height; i++ {
+		if i%2 == 0 {
+			m.drawPathDashline(m.Width, h, space, m.cords)
+		} else {
+			m.drawPathGridColumn(m.Width, h, space, m.cords)
+			h++
+		}
+	}
+}
+
+func mapSize(m coordinateMap) int {
 	c := 0
 	for i := 0; i < len(m); i++ {
 		c += len(m[i])
@@ -42,10 +179,11 @@ func entryWay(coord *[]*Coordinate) {
 	}
 }
 
-func CreateMap(width, height int) []*Coordinate {
-	inMap, outMap := make(CoordinateMap), make(CoordinateMap)
+//func CreateMap(width, height int) []*Coordinate {
+func CreateMap(width, height int) *Map {
+	inMap, outMap := make(coordinateMap), make(coordinateMap)
 	trace := make([]*Coordinate, 0)
-	size := width * height * 50 / 100
+	size := width * height * 40 / 100
 	grids := 0
 
 	rand.Seed(time.Now().UnixNano())
@@ -114,5 +252,6 @@ func CreateMap(width, height int) []*Coordinate {
 	trace = append([]*Coordinate{&Coordinate{X: 0, Y: 0}}, trace...)
 	entryWay(&trace)
 
-	return trace
+	return &Map{cords: trace, Width: width, Height: height}
+	//return trace
 }

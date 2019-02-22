@@ -191,7 +191,7 @@ func makeExitPoint(root *Grid, in, noSpace []*Grid) *Grid {
 	}
 }
 
-func CreateRandomMap() *Map {
+func CreateRandomMap() *RandomMap {
 	var root, exit *Grid
 
 	outMapGrids := make([]*Grid, 0)
@@ -215,22 +215,22 @@ func CreateRandomMap() *Map {
 
 	exit = makeExitPoint(root, inMapGrids, noSpaceGrids)
 
-	return &Map{root: root, exit: exit}
+	return &RandomMap{root: root, exit: exit}
 }
 
-type Map struct {
+type RandomMap struct {
 	root        *Grid
 	exit        *Grid
 	currPostion *Grid
 	team        *Team
 }
 
-func (m *Map) Enter(t *Team) {
+func (m *RandomMap) Enter(t *Team) {
 	m.team = t
 	m.currPostion = m.root
 }
 
-func (m *Map) Walk() {
+func (m *RandomMap) Walk() {
 	type wayoption struct {
 		option     int
 		optionName string
