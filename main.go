@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
-
-	"github.com/septemhill/fion"
 )
 
 type Listable interface {
@@ -108,40 +105,22 @@ func readUserChoice() int {
 //	//	select {}
 //}
 
-func drawDashLine(width, space int) {
-	dash := "-"
-
-	for i := 0; i < width; i++ {
-		dash += strings.Repeat("-", 3+1)
-	}
-
-	fmt.Println(dash)
-}
-
-func drawGridColumn(width, space int) {
-	grid := "|"
-
-	for i := 0; i < width; i++ {
-		grid += fion.BRed(strings.Repeat(" ", 3)) + "|"
-	}
-
-	fmt.Println(grid)
-}
-
-func drawSmallMap(width, height int) {
-	dashLineCount := height + 1
-	space := 3
-	//gridWidth := space + 2
-
-	for i := 0; i < dashLineCount+height; i++ {
-		if i%2 == 0 {
-			drawDashLine(width, space)
-		} else {
-			drawGridColumn(width, space)
-		}
-	}
-}
-
 func main() {
-	CreateMap(12, 15).DrawPath()
+	m := CreateMap(6, 6)
+
+	t := &Team{
+		Characters: []Character{
+			Character{Name: "Septem"},
+			Character{Name: "Nicole"},
+			Character{Name: "Asolia"},
+		},
+	}
+
+	m.Enter(t)
+	m.Walk()
 }
+
+//func main() {
+//	router := gin.Default()
+//	go RestfulService(router)
+//}

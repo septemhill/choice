@@ -3,265 +3,342 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"strconv"
+	"strings"
 	"time"
+
+	"github.com/septemhill/fion"
 )
 
-type ConnectorType int32
+type coordinateMap map[int]map[int]struct{}
 
-type Connector struct {
-	g *Grid
-	//ct        ConnectorType
-	ctorp     *Connector
-	connected bool
+type Coordinate struct {
+	X      int
+	Y      int
+	Up     bool
+	Down   bool
+	Left   bool
+	Right  bool
+	Events []CoordinateEvent
 }
 
-func (c *Connector) connect(ctorp *Connector) error {
-	//if c.ct == ctorp.ct {
-	//Pointer to each other
-	c.ctorp = ctorp
-	ctorp.ctorp = c
-
-	//Update status
-	c.connected = true
-	ctorp.connected = true
-
-	//Update grid connector space
-	c.g.Space--
-	ctorp.g.Space--
-
-	return nil
-	//}
-
-	//return errors.New("connector type not match")
+type Map struct {
+	cords    []*Coordinate
+	cordsMap map[string]*Coordinate
+	Width    int
+	Height   int
+	curr     *Coordinate
+	team     *Team
 }
 
-type Grid struct {
-	Name       string
-	Connectors [GRID_DIMENSION]*Connector
-	Space      int
+func (m *Map) exist(x, y int) bool {
+	str := fmt.Sprintf("%d:%d", x, y)
+	_, ok := m.cordsMap[str]
+
+	return ok
 }
 
-//const (
-//	CONN_TYPE_NONE ConnectorType = iota
-//	CONN_TYPE_1
-//	CONN_TYPE_2
-//	CONN_TYPE_3
-//	CONN_TYPE_4
-//	CONN_TYPE_5
-//	CONN_TYPE_6
-//	CONN_TYPE_MAX
-//)
+func (m *Map) find(x, y int) *Coordinate {
+	str := fmt.Sprintf("%d:%d", x, y)
+	d, ok := m.cordsMap[str]
 
-const (
-	GRID_DIMENSION = 4
-)
-
-func (g *Grid) findFirstFreeConnector() *Connector {
-	for i := 0; i < GRID_DIMENSION; i++ {
-		if !g.Connectors[i].connected {
-			return g.Connectors[i]
-		}
+	if ok {
+		return d
 	}
 
 	return nil
 }
 
-func NewGrid(name string) *Grid {
-	rand.Seed(time.Now().UnixNano())
-	grid := &Grid{
-		Name:  name,
-		Space: GRID_DIMENSION,
-	}
+func (m *Map) setCurrent(x, y int) {
+	m.curr = m.find(x, y)
 
-	grid.Connectors = [GRID_DIMENSION]*Connector{
-		&Connector{g: grid /*ct: ConnectorType(rand.Int31n(int32(CONN_TYPE_MAX)))*/},
-		&Connector{g: grid /*ct: ConnectorType(rand.Int31n(int32(CONN_TYPE_MAX)))*/},
-		&Connector{g: grid /*ct: ConnectorType(rand.Int31n(int32(CONN_TYPE_MAX)))*/},
-		&Connector{g: grid /*ct: ConnectorType(rand.Int31n(int32(CONN_TYPE_MAX)))*/},
-	}
+	//Trigger events
+	events := m.curr.Events
 
-	return grid
+	for i := 0; i < len(events); i++ {
+		events[i].Trigger(m.team)
+	}
 }
 
-func traverse(g *Grid, ctorp *Connector, m map[*Grid]struct{}) {
-	_, ok := m[g]
-	if g != nil && !ok {
-		fmt.Println(g.Name, g.Space)
-		m[g] = struct{}{}
-		for i := 0; i < GRID_DIMENSION; i++ {
-			if g.Connectors[i] != ctorp && g.Connectors[i].connected {
-				grid := g.Connectors[i].ctorp.g
-				inConn := g.Connectors[i].ctorp
-				traverse(grid, inConn, m)
+func (m *Map) drawMapDashline(width, height, space int, coord []*Coordinate) {
+	dash := "-"
+
+	for i := 0; i < width; i++ {
+		if m.exist(i, height-1) && m.exist(i, height) {
+			if m.exist(i, height) && m.exist(i+1, height) && m.exist(i+1, height-1) {
+				dash += fion.BRed(strings.Repeat(" ", space+1))
+			} else {
+				dash += fion.BRed(strings.Repeat(" ", space))
+				dash += "-"
 			}
+		} else {
+			dash += strings.Repeat("-", space+1)
+		}
+		//dash += strings.Repeat("-", space+1)
+	}
+	fmt.Println(dash)
+}
+
+func (m *Map) drawMapGridColumn(width, height, space int, coord []*Coordinate) {
+	grid := "|"
+
+	for i := 0; i < width; i++ {
+		if m.exist(i, height) {
+			if m.curr == m.find(i, height) {
+				grid += fion.BYellow(strings.Repeat(" ", space))
+			} else {
+				grid += fion.BRed(strings.Repeat(" ", space))
+
+			}
+
+			if m.exist(i+1, height) {
+				grid += fion.BRed(" ")
+			} else {
+				grid += "|"
+			}
+		} else {
+			grid += strings.Repeat(" ", space) + "|"
+		}
+	}
+	fmt.Println(grid)
+}
+
+func (m *Map) DrawMap() {
+	dashLineCount := m.Height + 1
+	space := 3
+	h := 0
+
+	for i := 0; i < dashLineCount+m.Height; i++ {
+		if i%2 == 0 {
+			m.drawMapDashline(m.Width, h, space, m.cords)
+		} else {
+			m.drawMapGridColumn(m.Width, h, space, m.cords)
+			h++
 		}
 	}
 }
 
-func Traverse(g *Grid, ctorp *Connector) {
-	m := make(map[*Grid]struct{})
-	traverse(g, ctorp, m)
+func (m *Map) drawPathDashline(width, height, space int, cords []*Coordinate) {
+	dash := "-"
+
+	for i := 0; i < width; i++ {
+		if m.exist(i, height-1) && m.exist(i, height) {
+			up, down := m.find(i, height-1), m.find(i, height)
+			if up.Down || down.Up {
+				dash += fion.BRed(strings.Repeat(" ", space)) + "-"
+			} else {
+				dash += strings.Repeat("-", space+1)
+			}
+		} else {
+			dash += strings.Repeat("-", space+1)
+		}
+	}
+	fmt.Println(dash)
 }
 
-func createTreePath(gridCount int, in, out, noSpace *[]*Grid) *Grid {
-	var root *Grid
-	rand.Seed(time.Now().UnixNano())
+func (m *Map) drawPathGridColumn(width, height, space int, cords []*Coordinate) {
+	grid := "|"
 
-	for i := 0; i < 100; i++ {
-		*out = append(*out, NewGrid(strconv.FormatInt(int64(i), 10)))
-	}
-
-	for i := 0; i < gridCount; i++ {
-		inMapLen := len(*in)
-		outMapLen := len(*out)
-
-		if inMapLen == 0 {
-			ornd := rand.Intn(outMapLen)
-			grid := (*out)[ornd]
-			root = grid
-			*out = append((*out)[:ornd], (*out)[ornd+1:]...)
-			*in = append(*in, grid)
-		} else {
-			irnd, ornd := rand.Intn(inMapLen), rand.Intn(outMapLen)
-			igrid := (*in)[irnd]
-			ogrid := (*out)[ornd]
-
-			for i := 0; i < len(igrid.Connectors); i++ {
-				if !igrid.Connectors[i].connected {
-					igrid.Connectors[i].connect(ogrid.Connectors[i])
-					break
+	for i := 0; i < width; i++ {
+		if m.exist(i, height) && m.exist(i+1, height) {
+			left, right := m.find(i, height), m.find(i+1, height)
+			if left.Right || right.Left {
+				if m.curr == left {
+					//grid += fion.BYellow(strings.Repeat(" ", space+1))
+					grid += fion.BYellow(strings.Repeat(" ", space))
+					grid += fion.BRed(" ")
+				} else {
+					grid += fion.BRed(strings.Repeat(" ", space+1))
+				}
+			} else {
+				if m.curr == left {
+					grid += fion.BYellow(strings.Repeat(" ", space)) + "|"
+				} else {
+					grid += fion.BRed(strings.Repeat(" ", space)) + "|"
 				}
 			}
+		} else if m.exist(i, height) {
+			if m.curr == m.find(i, height) {
+				grid += fion.BYellow(strings.Repeat(" ", space)) + "|"
 
-			if igrid.Space == 0 {
-				*noSpace = append(*noSpace, igrid)
-				*in = append((*in)[:irnd], (*in)[irnd+1:]...)
+			} else {
+				grid += fion.BRed(strings.Repeat(" ", space)) + "|"
+
+			}
+		} else {
+			grid += strings.Repeat(" ", space) + "|"
+		}
+	}
+	fmt.Println(grid)
+}
+
+func (m *Map) DrawPath() {
+	dashLineCount := m.Height + 1
+	space := 3
+	h := 0
+
+	for i := 0; i < dashLineCount+m.Height; i++ {
+		if i%2 == 0 {
+			m.drawPathDashline(m.Width, h, space, m.cords)
+		} else {
+			m.drawPathGridColumn(m.Width, h, space, m.cords)
+			h++
+		}
+	}
+}
+
+func (m *Map) Enter(t *Team) {
+	m.curr = m.cords[0]
+	m.team = t
+}
+
+func (m *Map) Walk() {
+	for {
+		var input int
+
+		EraseDisplay(CLR_ENTIRE_ALL)
+		MoveTo(1, 1)
+
+		m.DrawMap()
+
+		fmt.Println("[1] UP")
+		fmt.Println("[2] DOWN")
+		fmt.Println("[3] LEFT")
+		fmt.Println("[4] RIGHT")
+
+		fmt.Scanf("%d", &input)
+
+		if input < 1 || input > 4 {
+			continue
+		}
+
+		if input == 1 && m.exist(m.curr.X, m.curr.Y-1) {
+			m.setCurrent(m.curr.X, m.curr.Y-1)
+		} else if input == 2 && m.exist(m.curr.X, m.curr.Y+1) {
+			m.setCurrent(m.curr.X, m.curr.Y+1)
+		} else if input == 3 && m.exist(m.curr.X-1, m.curr.Y) {
+			m.setCurrent(m.curr.X-1, m.curr.Y)
+		} else if input == 4 && m.exist(m.curr.X+1, m.curr.Y) {
+			m.setCurrent(m.curr.X+1, m.curr.Y)
+		}
+
+	}
+}
+
+func mapSize(m coordinateMap) int {
+	c := 0
+	for i := 0; i < len(m); i++ {
+		c += len(m[i])
+	}
+
+	return c
+}
+
+func entryWay(coord *[]*Coordinate) {
+	for i := 0; i < len(*coord)-1; i++ {
+		if (*coord)[i].X-(*coord)[i+1].X > 0 {
+			(*coord)[i].Left = true
+		}
+		if (*coord)[i].X-(*coord)[i+1].X < 0 {
+			(*coord)[i].Right = true
+		}
+		if (*coord)[i].Y-(*coord)[i+1].Y > 0 {
+			(*coord)[i].Up = true
+		}
+		if (*coord)[i].Y-(*coord)[i+1].Y < 0 {
+			(*coord)[i].Down = true
+		}
+	}
+}
+
+func setupEvents(cords *[]*Coordinate) {
+	rndpercent := rand.Intn(5) + 5
+	eventCount := len(*cords) * rndpercent / 100
+	rand.Shuffle(len(*cords), func(i, j int) {
+		(*cords)[i], (*cords)[j] = (*cords)[j], (*cords)[i]
+	})
+
+	for i := 0; i < eventCount; i++ {
+		(*cords)[i].Events = append((*cords)[i].Events, eventList[i%EVT_MAX])
+	}
+}
+
+func CreateMap(width, height int) *Map {
+	inMap, outMap := make(coordinateMap), make(coordinateMap)
+	trace := make([]*Coordinate, 0)
+	size := width * height * 40 / 100
+	grids := 0
+
+	rand.Seed(time.Now().UnixNano())
+
+	for i := 0; i < width; i++ {
+		inMap[i], outMap[i] = make(map[int]struct{}), make(map[int]struct{})
+		for j := 0; j < height; j++ {
+			outMap[i][j] = struct{}{}
+		}
+	}
+
+	startX, startY := 0, 0
+	delete(outMap[0], 0)
+	inMap[0][0] = struct{}{}
+
+	for {
+		ccont := make([]*Coordinate, 0)
+
+		_, ok := outMap[startX][startY-1]
+		if ok {
+			ccont = append(ccont, &Coordinate{X: startX, Y: startY - 1})
+		}
+		_, ok = outMap[startX][startY+1]
+		if ok {
+			ccont = append(ccont, &Coordinate{X: startX, Y: startY + 1})
+		}
+		_, ok = outMap[startX+1][startY]
+		if ok {
+			ccont = append(ccont, &Coordinate{X: startX + 1, Y: startY})
+		}
+		_, ok = outMap[startX-1][startY]
+		if ok {
+			ccont = append(ccont, &Coordinate{X: startX - 1, Y: startY})
+		}
+
+		if len(ccont) == 0 {
+			if mapSize(outMap) == 0 {
+				break
 			}
 
-			*out = append((*out)[:ornd], (*out)[ornd+1:]...)
-			*in = append(*in, ogrid)
+			trace = trace[:len(trace)-1]
+			last := trace[len(trace)-1]
+			startX, startY = last.X, last.Y
+			grids--
+			continue
 		}
-	}
 
-	return root
-}
-
-func makeTreeCycle(gridCount int, in, noSpace *[]*Grid) {
-	rand.Seed(time.Now().UnixNano())
-
-	freeConnectorCount := (gridCount * 4) - (gridCount-1)*2
-	connectPairCount := freeConnectorCount * 25 / 100
-
-	for i := 0; i < connectPairCount; i++ {
-		inLen := len(*in)
-		rand.Shuffle(inLen, func(ia, ja int) {
-			(*in)[ia], (*in)[ja] = (*in)[ja], (*in)[ia]
+		rand.Shuffle(len(ccont), func(i, j int) {
+			ccont[i], ccont[j] = ccont[j], ccont[i]
 		})
 
-		firstGrid := (*in)[0]
-		secondGrid := (*in)[1]
+		next := ccont[0]
 
-		firstGrid.findFirstFreeConnector().connect(secondGrid.findFirstFreeConnector())
+		delete(outMap[next.X], next.Y)
+		inMap[next.X][next.Y] = struct{}{}
+		trace = append(trace, &Coordinate{X: next.X, Y: next.Y})
 
-		if secondGrid.Space == 0 {
-			*noSpace = append(*noSpace, secondGrid)
-			*in = append((*in)[:1], (*in)[2:]...)
-		}
+		startX, startY = next.X, next.Y
 
-		if firstGrid.Space == 0 {
-			*noSpace = append(*noSpace, firstGrid)
-			*in = append((*in)[1:])
-		}
-	}
-}
-
-func makeExitPoint(root *Grid, in, noSpace []*Grid) *Grid {
-	rand.Seed(time.Now().UnixNano())
-	grids := append(in, noSpace...)
-
-	for {
-		rand.Shuffle(len(grids), func(i, j int) {
-			grids[i], grids[j] = grids[j], grids[i]
-		})
-
-		if root != grids[len(grids)-1] {
-			return grids[len(grids)-1]
-		}
-	}
-}
-
-func CreateRandomMap() *RandomMap {
-	var root, exit *Grid
-
-	outMapGrids := make([]*Grid, 0)
-	inMapGrids := make([]*Grid, 0)
-	noSpaceGrids := make([]*Grid, 0)
-
-	root = createTreePath(100, &inMapGrids, &outMapGrids, &noSpaceGrids)
-	makeTreeCycle(100, &inMapGrids, &noSpaceGrids)
-
-	//	g := append(inMapGrids, noSpaceGrids...)
-	//	fmt.Println("LEN", len(g))
-	//
-	//	for i := 0; i < len(g); i++ {
-	//		fmt.Println(g[i].Name)
-	//		for j := 0; j < GRID_DIMENSION; j++ {
-	//			if g[i].Connectors[j].connected {
-	//				fmt.Println("connected to ", g[i].Connectors[j].ctorp.g.Name)
-	//			}
-	//		}
-	//	}
-
-	exit = makeExitPoint(root, inMapGrids, noSpaceGrids)
-
-	return &RandomMap{root: root, exit: exit}
-}
-
-type RandomMap struct {
-	root        *Grid
-	exit        *Grid
-	currPostion *Grid
-	team        *Team
-}
-
-func (m *RandomMap) Enter(t *Team) {
-	m.team = t
-	m.currPostion = m.root
-}
-
-func (m *RandomMap) Walk() {
-	type wayoption struct {
-		option     int
-		optionName string
-		grid       *Grid
-	}
-
-	fmt.Printf("root: %s, exit: %s\n", m.root.Name, m.exit.Name)
-	for {
-		if m.currPostion == m.exit {
-			fmt.Println("wowowowowowowowowowowowowowowow, u DONE")
+		grids++
+		if grids == size {
 			break
 		}
-
-		options := make([]wayoption, 0)
-		idx := 1
-
-		for i := 0; i < len(m.currPostion.Connectors); i++ {
-			if m.currPostion.Connectors[i].connected {
-				options = append(options, wayoption{option: idx, optionName: m.currPostion.Connectors[i].ctorp.g.Name, grid: m.currPostion.Connectors[i].ctorp.g})
-				idx++
-			}
-		}
-
-		for i := 0; i < len(options); i++ {
-			fmt.Printf("[%d]. %s\n", options[i].option, options[i].optionName)
-		}
-
-		choice := readUserChoice()
-
-		if (choice > 0) && (choice <= len(options)) {
-			m.currPostion = options[choice-1].grid
-		}
 	}
+
+	trace = append([]*Coordinate{&Coordinate{X: 0, Y: 0}}, trace...)
+	entryWay(&trace)
+
+	cordsmap := make(map[string]*Coordinate)
+	for i := 0; i < len(trace); i++ {
+		str := fmt.Sprintf("%d:%d", trace[i].X, trace[i].Y)
+		cordsmap[str] = trace[i]
+	}
+
+	return &Map{cords: trace, cordsMap: cordsmap, Width: width, Height: height}
 }
