@@ -2,10 +2,13 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"container/list"
 	"fmt"
 	"os"
 	"strconv"
+
+	"github.com/septemhill/fion"
 )
 
 type Listable interface {
@@ -105,22 +108,44 @@ func readUserChoice() int {
 //	//	select {}
 //}
 
-func main() {
-	m := CreateMap(6, 6)
-
-	t := &Team{
-		Characters: []Character{
-			Character{Name: "Septem"},
-			Character{Name: "Nicole"},
-			Character{Name: "Asolia"},
-		},
-	}
-
-	m.Enter(t)
-	m.Walk()
-}
+//func main() {
+//	m := CreateMap(6, 6)
+//
+//	t := &Team{
+//		Characters: []Character{
+//			Character{Name: "Septem"},
+//			Character{Name: "Nicole"},
+//			Character{Name: "Asolia"},
+//		},
+//	}
+//
+//	m.Enter(t)
+//	m.Walk()
+//}
 
 //func main() {
-//	router := gin.Default()
-//	go RestfulService(router)
+//	s := fion.BRed("Hi碰顆 ") + fion.BYellow("Nicole so 高興!!!")
+//
+//	cont := stringParse(s)
+//	fmt.Println("WWW", cont.Len())
+//
+//	for i := 0; i < len(cont); i++ {
+//		fmt.Println("AAA1", []rune(cont[i].oriStr))
+//		fmt.Println("AAA2", []rune(cont[i].escStart))
+//		fmt.Println("AAA3", []rune(cont[i].escEnd))
+//		fmt.Println("AAA4", cont[i].oriStart)
+//		fmt.Println("AAA5", cont[i].oriEnd)
+//
+//		fmt.Println()
+//	}
+//
+//	fmt.Println(cont.Len())
+//	fmt.Println(cont.Substring(3, 10))
 //}
+
+func main() {
+	msgbox := Box{bytes.NewBuffer(nil), 1, 1, 20, 20}
+	str := ("Nicole") + fion.BBlue("Septem")
+	fmt.Fprintf(msgbox, str)
+	msgbox.Draw()
+}

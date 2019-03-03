@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -22,6 +23,7 @@ type Coordinate struct {
 }
 
 type Map struct {
+	box      *Box
 	cords    []*Coordinate
 	cordsMap map[string]*Coordinate
 	Width    int
@@ -75,7 +77,8 @@ func (m *Map) drawMapDashline(width, height, space int, coord []*Coordinate) {
 		}
 		//dash += strings.Repeat("-", space+1)
 	}
-	fmt.Println(dash)
+	//fmt.Println(dash)
+	fmt.Fprintf(m.box, dash+"\n")
 }
 
 func (m *Map) drawMapGridColumn(width, height, space int, coord []*Coordinate) {
@@ -99,7 +102,8 @@ func (m *Map) drawMapGridColumn(width, height, space int, coord []*Coordinate) {
 			grid += strings.Repeat(" ", space) + "|"
 		}
 	}
-	fmt.Println(grid)
+	//fmt.Println(grid)
+	fmt.Fprintf(m.box, grid+"\n")
 }
 
 func (m *Map) DrawMap() {
@@ -115,6 +119,8 @@ func (m *Map) DrawMap() {
 			h++
 		}
 	}
+
+	m.box.Draw()
 }
 
 func (m *Map) drawPathDashline(width, height, space int, cords []*Coordinate) {
@@ -143,7 +149,6 @@ func (m *Map) drawPathGridColumn(width, height, space int, cords []*Coordinate) 
 			left, right := m.find(i, height), m.find(i+1, height)
 			if left.Right || right.Left {
 				if m.curr == left {
-					//grid += fion.BYellow(strings.Repeat(" ", space+1))
 					grid += fion.BYellow(strings.Repeat(" ", space))
 					grid += fion.BRed(" ")
 				} else {
@@ -195,7 +200,7 @@ func (m *Map) Walk() {
 	for {
 		var input int
 
-		EraseDisplay(CLR_ENTIRE_ALL)
+		//EraseDisplay(CLR_ENTIRE_ALL)
 		MoveTo(1, 1)
 
 		m.DrawMap()
@@ -340,5 +345,7 @@ func CreateMap(width, height int) *Map {
 		cordsmap[str] = trace[i]
 	}
 
-	return &Map{cords: trace, cordsMap: cordsmap, Width: width, Height: height}
+	box := &Box{bytes.NewBuffer(nil), 1, 1, 30, 30}
+
+	return &Map{box: box, cords: trace, cordsMap: cordsmap, Width: width, Height: height}
 }
