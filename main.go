@@ -123,29 +123,14 @@ func readUserChoice() int {
 //	m.Walk()
 //}
 
-//func main() {
-//	s := fion.BRed("Hi碰顆 ") + fion.BYellow("Nicole so 高興!!!")
-//
-//	cont := stringParse(s)
-//	fmt.Println("WWW", cont.Len())
-//
-//	for i := 0; i < len(cont); i++ {
-//		fmt.Println("AAA1", []rune(cont[i].oriStr))
-//		fmt.Println("AAA2", []rune(cont[i].escStart))
-//		fmt.Println("AAA3", []rune(cont[i].escEnd))
-//		fmt.Println("AAA4", cont[i].oriStart)
-//		fmt.Println("AAA5", cont[i].oriEnd)
-//
-//		fmt.Println()
-//	}
-//
-//	fmt.Println(cont.Len())
-//	fmt.Println(cont.Substring(3, 10))
-//}
-
 func main() {
 	msgbox := Box{bytes.NewBuffer(nil), 1, 1, 20, 20}
 	str := ("Nicole") + fion.BBlue("Septem")
 	fmt.Fprintf(msgbox, str)
 	msgbox.Draw()
+
+	//str := "│                  │"
+	//	str := "Skdkdkfdtreger"
+	//	s := stringParse(str)
+	//	fmt.Println(s)
 }

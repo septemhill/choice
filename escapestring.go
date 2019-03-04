@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"regexp"
+	"strconv"
 )
 
 type StringWithEscape struct {
@@ -14,7 +14,8 @@ type StringWithEscape struct {
 }
 
 func (s StringWithEscape) String() string {
-	return s.escStart + string(s.oriStr) + s.escEnd
+	//return s.escStart + string(s.oriStr) + s.escEnd
+	return "oriStart: " + strconv.FormatInt(int64(s.oriStart), 10) + ", oriEnd: " + strconv.FormatInt(int64(s.oriEnd), 10)
 }
 
 type EscapeString []StringWithEscape
@@ -85,14 +86,22 @@ func stringParse(str string) EscapeString {
 	re := regexp.MustCompile("\x1b[[0-9;]*m")
 	idxs := re.FindAllStringIndex(str, -1)
 	strIdx := 0
-	fmt.Println(idxs)
+
+	if len(idxs) == 0 && len(str) != 0 {
+		var cstr StringWithEscape
+		cstr.oriStr = []rune(str[0:])
+		cstr.oriStart = strIdx
+		cstr.oriEnd = strIdx + len(cstr.oriStr)
+
+		cont = append(cont, cstr)
+	}
 
 	for i := 0; i < len(idxs); i++ {
 		var cstr StringWithEscape
 		if i == 0 && idxs[i][0] > 0 {
 			cstr.oriStr = []rune(str[0:idxs[0][0]])
-			cstr.oriStart = 0
-			cstr.oriEnd = idxs[0][0]
+			cstr.oriStart = strIdx
+			cstr.oriEnd = strIdx + len(cstr.oriStr)
 
 			strIdx += len(cstr.oriStr)
 			cont = append(cont, cstr)
@@ -108,8 +117,8 @@ func stringParse(str string) EscapeString {
 
 		} else if i == len(idxs)-1 {
 			cstr.oriStr = []rune(str[idxs[len(idxs)-1][1]:len(str)])
-			cstr.oriStart = idxs[len(idxs)-1][1]
-			cstr.oriEnd = len(str)
+			cstr.oriStart = strIdx
+			cstr.oriEnd = strIdx + len(cstr.oriStr)
 
 			strIdx += len(cstr.oriStr)
 			cont = append(cont, cstr)
@@ -128,37 +137,8 @@ func stringParse(str string) EscapeString {
 		if len(cont[i].oriStr) == 0 {
 			cont = append(cont[:i], cont[i+1:]...)
 		}
+		//i--
 	}
 
 	return cont
 }
-
-//func stringParse(str string) EscapeString {
-//	cont := make([]StringWithEscape, 0)
-//	re := regexp.MustCompile("\x1b[[0-9;]*m")
-//	idxs := re.FindAllStringIndex(str, -1)
-//	strIdx := 0
-//
-//	for i := 0; i < len(idxs)-1; i++ {
-//		//fmt.Println(idxs[i])
-//		cstr := StringWithEscape{
-//			oriStr:   []rune(str[idxs[i][1]:idxs[i+1][0]]),
-//			escStart: str[idxs[i][0]:idxs[i][1]],
-//			escEnd:   str[idxs[i+1][0]:idxs[i+1][1]],
-//			oriStart: strIdx,
-//			oriEnd:   strIdx + len([]rune(str[idxs[i][1]:idxs[i+1][0]])),
-//		}
-//
-//		strIdx += len(cstr.oriStr)
-//
-//		cont = append(cont, cstr)
-//	}
-//
-//	for i := 0; i < len(cont); i++ {
-//		if len(cont[i].oriStr) == 0 {
-//			cont = append(cont[:i], cont[i+1:]...)
-//		}
-//	}
-//
-//	return cont
-//}
