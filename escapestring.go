@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"regexp"
-	"strconv"
+
+	runewidth "github.com/mattn/go-runewidth"
 )
 
 type StringWithEscape struct {
@@ -13,20 +15,41 @@ type StringWithEscape struct {
 	oriEnd   int
 }
 
+func (s StringWithEscape) Len() int {
+	return len(s.oriStr)
+}
+
+func (s StringWithEscape) Width() int {
+	//return len([]byte(string(s.oriStr)))
+	return runewidth.StringWidth(string(s.oriStr))
+}
+
 func (s StringWithEscape) String() string {
-	//return s.escStart + string(s.oriStr) + s.escEnd
-	return "oriStart: " + strconv.FormatInt(int64(s.oriStart), 10) + ", oriEnd: " + strconv.FormatInt(int64(s.oriEnd), 10)
+	return s.escStart + string(s.oriStr) + s.escEnd
 }
 
 type EscapeString []StringWithEscape
 
+func (e EscapeString) Info(i int) {
+	fmt.Println("[DEBUG]", e[i])
+}
+
 func (e EscapeString) Len() int {
 	var strLen int
 	for i := 0; i < len(e); i++ {
-		strLen += len(e[i].oriStr)
+		strLen += e[i].Len()
 	}
 
 	return strLen
+}
+
+func (e EscapeString) Width() int {
+	var strWidth int
+	for i := 0; i < len(e); i++ {
+		strWidth += e[i].Width()
+	}
+
+	return strWidth
 }
 
 func (e EscapeString) String() string {
@@ -46,6 +69,89 @@ func (e EscapeString) Element(ie int) string {
 	}
 
 	return ""
+}
+
+func (e EscapeString) SubstringByWidth(start, reqWidth int) string {
+	var es, ee int
+	var esoff, eeoff int
+	var width int
+	var reqstr string
+
+	for i := 0; i < len(e); i++ {
+		if start >= e[i].oriStart && start < e[i].oriEnd {
+			es = i
+			esoff = start - e[i].oriStart
+		}
+	}
+
+	for i := es; i < len(e); i++ {
+		if i == es {
+			l := runewidth.StringWidth(string(e[i].oriStr[esoff:]))
+
+			if width+l < reqWidth {
+				width += l
+			} else {
+				ee = i
+				for j := esoff; j < e[i].Len(); j++ {
+					cl := runewidth.RuneWidth(e[i].oriStr[j])
+					if width+cl <= reqWidth {
+						width += cl
+						eeoff = j + 1
+					} else {
+						break
+					}
+
+				}
+				break
+			}
+		} else {
+			l := runewidth.StringWidth(string(e[i].oriStr[0:]))
+
+			if width+l < reqWidth {
+				width += l
+			} else {
+				ee = i
+				for j := 0; j < e[i].Len(); j++ {
+					cl := runewidth.RuneWidth(e[i].oriStr[j])
+					if width+cl <= reqWidth {
+						width += cl
+						eeoff = j + 1
+					} else {
+						break
+					}
+				}
+				break
+			}
+		}
+	}
+
+	//fmt.Println("ES", es)
+	//fmt.Println("ESOFF", esoff)
+	//fmt.Println("EE", ee)
+	//fmt.Println("EEOFF", eeoff)
+
+	if es == ee {
+		reqstr += e[es].escStart + string(e[es].oriStr[esoff:eeoff]) + e[es].escEnd
+	} else {
+		for i := es; i <= ee; i++ {
+			if i == es {
+				fmt.Println("A1", i)
+				reqstr += e[i].escStart + string(e[i].oriStr[esoff:]) + e[i].escEnd
+			} else if i == ee {
+				fmt.Println("A2", i)
+				reqstr += e[i].escStart + string(e[i].oriStr[:eeoff]) + e[i].escEnd
+			} else {
+				fmt.Println("A3", i)
+				reqstr += e[i].escStart + string(e[i].oriStr) + e[i].escEnd
+			}
+		}
+	}
+
+	//if width < reqWidth {
+	//	reqstr += strings.Repeat(" ", reqWidth-width)
+	//}
+
+	return reqstr
 }
 
 func (e EscapeString) Substring(start, end int) string {
@@ -110,7 +216,7 @@ func stringParse(str string) EscapeString {
 			cstr.escStart = str[idxs[i][0]:idxs[i][1]]
 			cstr.escEnd = str[idxs[i+1][0]:idxs[i+1][1]]
 			cstr.oriStart = strIdx
-			cstr.oriEnd = strIdx + len([]rune(str[idxs[i][1]:idxs[i+1][0]]))
+			cstr.oriEnd = strIdx + len(cstr.oriStr)
 
 			strIdx += len(cstr.oriStr)
 			cont = append(cont, cstr)
@@ -124,10 +230,13 @@ func stringParse(str string) EscapeString {
 			cont = append(cont, cstr)
 		} else {
 			cstr.oriStr = []rune(str[idxs[i][1]:idxs[i+1][0]])
-			cstr.escStart = str[idxs[i][0]:idxs[i][1]]
-			cstr.escEnd = str[idxs[i+1][0]:idxs[i+1][1]]
+			if i%2 == 0 {
+				cstr.escStart = str[idxs[i][0]:idxs[i][1]]
+				cstr.escEnd = str[idxs[i+1][0]:idxs[i+1][1]]
+			}
 			cstr.oriStart = strIdx
-			cstr.oriEnd = strIdx + len([]rune(str[idxs[i][1]:idxs[i+1][0]]))
+			cstr.oriEnd = strIdx + len(cstr.oriStr)
+
 			strIdx += len(cstr.oriStr)
 			cont = append(cont, cstr)
 		}

@@ -8,7 +8,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/septemhill/fion"
+	"golang.org/x/sys/unix"
 )
 
 type Listable interface {
@@ -86,51 +86,45 @@ func readUserChoice() int {
 	}
 }
 
-//func main() {
-//	//Create a team
-//	team := &Team{
-//		Characters: []Character{
-//			Character{Name: "Septem"},
-//			Character{Name: "Nicole"},
-//		},
-//		Money: 10000000,
-//	}
-//
-//	//v := NewVilleage("DQ Town")
-//	//v.Enter(team)
-//
-//	rndMap := CreateRandomMap()
-//	rndMap.Enter(team)
-//
-//	rndMap.Walk()
-//
-//	//	go TaskRoutine()
-//	//	select {}
-//}
+func getTerminalSize() (int, int) {
+	ws, err := unix.IoctlGetWinsize(int(os.Stdout.Fd()), unix.TIOCGWINSZ)
 
-//func main() {
-//	m := CreateMap(6, 6)
-//
-//	t := &Team{
-//		Characters: []Character{
-//			Character{Name: "Septem"},
-//			Character{Name: "Nicole"},
-//			Character{Name: "Asolia"},
-//		},
-//	}
-//
-//	m.Enter(t)
-//	m.Walk()
-//}
+	if err != nil {
+		return -1, -1
+	}
+
+	return int(ws.Col), int(ws.Row)
+}
 
 func main() {
-	msgbox := Box{bytes.NewBuffer(nil), 1, 1, 20, 20}
-	str := ("Nicole") + fion.BBlue("Septem")
-	fmt.Fprintf(msgbox, str)
-	msgbox.Draw()
+	//	m := CreateMap(6, 6)
+	//
+	//	t := &Team{
+	//		Characters: []Character{
+	//			Character{Name: "Septem"},
+	//			Character{Name: "Nicole"},
+	//			Character{Name: "Asolia"},
+	//		},
+	//	}
+	//
+	//	m.Enter(t)
+	//	EraseDisplay(CLR_ENTIRE_ALL)
+	//	m.Walk()
 
-	//str := "│                  │"
-	//	str := "Skdkdkfdtreger"
-	//	s := stringParse(str)
-	//	fmt.Println(s)
+	//tbox := &Box{bytes.NewBuffer(nil), 1, 1, 20, 20}
+	//fmt.Fprintf(tbox, fion.BRed("Hi, Septem 科科科科科我不是天才喝科八"))
+	//tbox.Draw()
+
+	//str := fion.BRed("Septem吃飯囉") + ("Nicole go home囉") + fion.BBlue("Seednia so coooool!!")
+	//es := stringParse(str)
+	//fmt.Println(es.SubstringByWidth(4, 30))
+
+	_, height := getTerminalSize()
+
+	twbox := &Box{bytes.NewBuffer(nil), 1, 1, 20, 10}
+	fmt.Fprintf(twbox, "QQ哭枯喔")
+	twbox.Draw()
+
+	moveToPaint(2, 5, "A")
+	moveToPaint(height, 1, "A")
 }
